@@ -1,5 +1,7 @@
-import '../domain/tender_model.dart';
-import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart'; // Assuming you have uuid package for v4, but since it's already used in mock, import it.
+
+// MockTenders class (pasted from your code, with import for Tender model)
+import '../domain/tender_model.dart'; // Adjust path as needed
 
 class MockTenders {
   static final List<Tender> list = [

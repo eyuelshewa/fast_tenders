@@ -21,7 +21,7 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/feed',
-            builder: (context, state) => const FeedScreen(),
+            builder: (context, state) => const TenderScreen(),
           ),
           GoRoute(
             path: '/calculator',
@@ -87,4 +87,7 @@ class ScaffoldWithBottomNavBar extends StatelessWidget {
         break;
     }
   }
+}
+extension on Color {
+  Color? get shade800 => null;
 }
