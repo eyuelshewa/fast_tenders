@@ -17,7 +17,7 @@ _$TenderImpl _$$TenderImplFromJson(Map<String, dynamic> json) => _$TenderImpl(
   postedDate: DateTime.parse(json['posted_date'] as String),
   cpoAmount: (json['cpo_amount'] as num?)?.toDouble(),
   status: json['status'] as String,
-  minGrade: json['min_grade'] as String,
+  minGrade: json['min_grade'] as String?,
   locationEn: json['location_en'] as String,
   locationAm: json['location_am'] as String,
   isFeatured: json['is_featured'] as bool? ?? false,

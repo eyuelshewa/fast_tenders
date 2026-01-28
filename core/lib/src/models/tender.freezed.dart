@@ -38,7 +38,7 @@ mixin _$Tender {
   double? get cpoAmount => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
   @JsonKey(name: 'min_grade')
-  String get minGrade => throw _privateConstructorUsedError;
+  String? get minGrade => throw _privateConstructorUsedError;
   @JsonKey(name: 'location_en')
   String get locationEn => throw _privateConstructorUsedError;
   @JsonKey(name: 'location_am')
@@ -71,7 +71,7 @@ abstract class $TenderCopyWith<$Res> {
     @JsonKey(name: 'posted_date') DateTime postedDate,
     @JsonKey(name: 'cpo_amount') double? cpoAmount,
     String status,
-    @JsonKey(name: 'min_grade') String minGrade,
+    @JsonKey(name: 'min_grade') String? minGrade,
     @JsonKey(name: 'location_en') String locationEn,
     @JsonKey(name: 'location_am') String locationAm,
     @JsonKey(name: 'is_featured') bool isFeatured,
@@ -103,7 +103,7 @@ class _$TenderCopyWithImpl<$Res, $Val extends Tender>
     Object? postedDate = null,
     Object? cpoAmount = freezed,
     Object? status = null,
-    Object? minGrade = null,
+    Object? minGrade = freezed,
     Object? locationEn = null,
     Object? locationAm = null,
     Object? isFeatured = null,
@@ -150,10 +150,10 @@ class _$TenderCopyWithImpl<$Res, $Val extends Tender>
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
                       as String,
-            minGrade: null == minGrade
+            minGrade: freezed == minGrade
                 ? _value.minGrade
                 : minGrade // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             locationEn: null == locationEn
                 ? _value.locationEn
                 : locationEn // ignore: cast_nullable_to_non_nullable
@@ -191,7 +191,7 @@ abstract class _$$TenderImplCopyWith<$Res> implements $TenderCopyWith<$Res> {
     @JsonKey(name: 'posted_date') DateTime postedDate,
     @JsonKey(name: 'cpo_amount') double? cpoAmount,
     String status,
-    @JsonKey(name: 'min_grade') String minGrade,
+    @JsonKey(name: 'min_grade') String? minGrade,
     @JsonKey(name: 'location_en') String locationEn,
     @JsonKey(name: 'location_am') String locationAm,
     @JsonKey(name: 'is_featured') bool isFeatured,
@@ -222,7 +222,7 @@ class __$$TenderImplCopyWithImpl<$Res>
     Object? postedDate = null,
     Object? cpoAmount = freezed,
     Object? status = null,
-    Object? minGrade = null,
+    Object? minGrade = freezed,
     Object? locationEn = null,
     Object? locationAm = null,
     Object? isFeatured = null,
@@ -269,10 +269,10 @@ class __$$TenderImplCopyWithImpl<$Res>
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
                   as String,
-        minGrade: null == minGrade
+        minGrade: freezed == minGrade
             ? _value.minGrade
             : minGrade // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         locationEn: null == locationEn
             ? _value.locationEn
             : locationEn // ignore: cast_nullable_to_non_nullable
@@ -304,7 +304,7 @@ class _$TenderImpl implements _Tender {
     @JsonKey(name: 'posted_date') required this.postedDate,
     @JsonKey(name: 'cpo_amount') this.cpoAmount,
     required this.status,
-    @JsonKey(name: 'min_grade') required this.minGrade,
+    @JsonKey(name: 'min_grade') this.minGrade,
     @JsonKey(name: 'location_en') required this.locationEn,
     @JsonKey(name: 'location_am') required this.locationAm,
     @JsonKey(name: 'is_featured') this.isFeatured = false,
@@ -341,7 +341,7 @@ class _$TenderImpl implements _Tender {
   final String status;
   @override
   @JsonKey(name: 'min_grade')
-  final String minGrade;
+  final String? minGrade;
   @override
   @JsonKey(name: 'location_en')
   final String locationEn;
@@ -434,7 +434,7 @@ abstract class _Tender implements Tender {
     @JsonKey(name: 'posted_date') required final DateTime postedDate,
     @JsonKey(name: 'cpo_amount') final double? cpoAmount,
     required final String status,
-    @JsonKey(name: 'min_grade') required final String minGrade,
+    @JsonKey(name: 'min_grade') final String? minGrade,
     @JsonKey(name: 'location_en') required final String locationEn,
     @JsonKey(name: 'location_am') required final String locationAm,
     @JsonKey(name: 'is_featured') final bool isFeatured,
@@ -470,7 +470,7 @@ abstract class _Tender implements Tender {
   String get status;
   @override
   @JsonKey(name: 'min_grade')
-  String get minGrade;
+  String? get minGrade;
   @override
   @JsonKey(name: 'location_en')
   String get locationEn;

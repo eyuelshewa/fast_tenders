@@ -1,3 +1,4 @@
+import 'package:fast_tenders/core/providers/tender_provider.dart';
 import 'package:fast_tenders/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,9 @@ class TenderDetailScreen extends ConsumerStatefulWidget {
 
 class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
   late int currentIndex;
+  bool isSaving = false;
+  // Track alert status per tender ID
+  final Map<String, bool> _alertStates = {};
 
   @override
   void initState() {
@@ -32,29 +36,71 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
   }
 
   Tender get tender => widget.tenders[currentIndex];
+  bool get isAlertSet => _alertStates[tender.id] ?? false;
+
+  Future<void> _toggleSave() async {
+    final user = ref.read(currentUserProvider).value;
+    if (user == null) return;
+
+    setState(() => isSaving = true);
+    try {
+      await ref
+          .read(tenderRepositoryProvider)
+          .toggleSaveTender(user.id, tender.id);
+
+      // Refresh the saved tenders list
+      ref.invalidate(savedTendersProvider);
+
+      // We need a way to refresh the UI state.
+      // For simplicity in this demo, we'll just force a rebuild.
+      setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tender bookmark updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => isSaving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final locale = ref.watch(localeProvider);
     final langCode = locale.languageCode;
     final l10n = AppLocalizations.of(context)!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        backgroundColor: isDark
+            ? theme.scaffoldBackgroundColor
+            : AppColors.primary,
+        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          l10n.tendersTitle, // Using existing key for "Tender Details" concept
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          l10n.tendersTitle,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined),
+            icon: const Icon(Icons.share_outlined, color: Colors.white),
             onPressed: () {
               final text =
                   "${tender.getOrganization(langCode)}\n${tender.getTitle(langCode)}\nDeadline: ${DateFormat('MMM dd, yyyy').format(tender.deadline)}";
@@ -63,23 +109,14 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
           ),
           const SizedBox(width: 8),
         ],
-        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Newspaper Scan Section
-            _buildSectionHeader(
-              context,
-              title: "Original Scan",
-              trailing:
-                  "Addis Zemen • ${DateFormat('MMM dd, yyyy').format(tender.postedDate)}",
-            ),
-
-            // OCR Text Section
-            _buildOCRSection(context, tender, langCode),
+            // Description Section
+            _buildDescriptionSection(context, tender, langCode),
 
             // Locked Bidding Documents
             _buildBiddingDocuments(context),
@@ -95,103 +132,66 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
     );
   }
 
-  Widget _buildSectionHeader(
-    BuildContext context, {
-    required String title,
-    String? trailing,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              letterSpacing: 1.2,
-            ),
-          ),
-          if (trailing != null)
-            Text(
-              trailing,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOCRSection(
+  Widget _buildDescriptionSection(
     BuildContext context,
     Tender tender,
     String langCode,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Text Extracted (OCR)",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.copy_outlined, size: 16),
-                label: const Text("Copy"),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+          Text(
+            "Description",
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1F2937).withValues(alpha: 0.5)
-                  : Colors.white,
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildOCRLine("Organization", tender.getOrganization(langCode)),
-                _buildOCRLine("Project", tender.getTitle(langCode)),
                 _buildOCRLine(
+                  context,
+                  "Organization",
+                  tender.getOrganization(langCode),
+                ),
+                _buildOCRLine(context, "Project", tender.getTitle(langCode)),
+                _buildOCRLine(
+                  context,
                   "Deadline",
                   DateFormat('MMM dd, yyyy (hh:mm a)').format(tender.deadline),
                 ),
                 _buildOCRLine(
+                  context,
                   "Bid Bond",
                   tender.cpoAmount != null
                       ? "${NumberFormat.decimalPattern().format(tender.cpoAmount)} ETB (CPO or Bank Guarantee)"
                       : "Not specified",
                 ),
-                _buildOCRLine("Eligibility", tender.minGrade),
-                const Divider(height: 24),
-                Row(
-                  children: [
-                    const Icon(Icons.verified, color: Colors.green, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      "AI CONFIDENCE: 98%",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
+                _buildOCRLine(
+                  context,
+                  "Eligibility",
+                  tender.minGrade ?? "Unknown",
                 ),
               ],
             ),
@@ -201,23 +201,28 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
     );
   }
 
-  Widget _buildOCRLine(String label, String value) {
+  Widget _buildOCRLine(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(fontSize: 14, height: 1.5),
+          style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
           children: [
             TextSpan(
               text: "$label: ",
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                color: AppColors.textSecondary,
               ),
             ),
             TextSpan(
               text: value,
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withValues(
+                  alpha: 0.9,
+                ),
+              ),
             ),
           ],
         ),
@@ -226,7 +231,7 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
   }
 
   Widget _buildBiddingDocuments(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Stack(
@@ -234,23 +239,25 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
           Container(
             padding: const EdgeInsets.all(35),
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1F2937).withValues(alpha: 0.5)
-                  : Colors.white,
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.1),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Bidding Documents",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                _buildLockedDocItem(isDark, "Document 1"),
+                _buildLockedDocItem(context, "Document 1"),
                 const SizedBox(height: 12),
-                _buildLockedDocItem(isDark, "Document 2"),
+                _buildLockedDocItem(context, "Document 2"),
               ],
             ),
           ),
@@ -333,7 +340,9 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
     );
   }
 
-  Widget _buildLockedDocItem(bool isDark, String name) {
+  Widget _buildLockedDocItem(BuildContext context, String name) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -344,7 +353,10 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.description, color: Colors.grey.shade400),
+          Icon(
+            Icons.description,
+            color: theme.hintColor.withValues(alpha: 0.5),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -354,7 +366,7 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
                   height: 8,
                   width: 100,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -363,21 +375,21 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
                   height: 6,
                   width: 60,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade800,
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.lock, color: Colors.grey.shade500, size: 18),
+          Icon(Icons.lock, color: theme.hintColor, size: 18),
         ],
       ),
     );
   }
 
   Widget _buildHistoricalPrices(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -385,9 +397,11 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Historical Winning Prices",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -413,11 +427,11 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
                 height: 180,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF1F2937).withValues(alpha: 0.5)
-                      : Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -426,33 +440,45 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildBar(0.4),
-                          _buildBar(0.7),
-                          _buildBar(0.3),
-                          _buildBar(0.9),
-                          _buildBar(0.6),
+                          _buildBar(context, 0.4),
+                          _buildBar(context, 0.7),
+                          _buildBar(context, 0.3),
+                          _buildBar(context, 0.9),
+                          _buildBar(context, 0.6),
                         ],
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           "2020",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.hintColor,
+                          ),
                         ),
                         Text(
                           "2021",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.hintColor,
+                          ),
                         ),
                         Text(
                           "2022",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.hintColor,
+                          ),
                         ),
                         Text(
                           "2023",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.hintColor,
+                          ),
                         ),
                       ],
                     ),
@@ -521,18 +547,19 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
     );
   }
 
-  Widget _buildBar(double heightFactor) {
+  Widget _buildBar(BuildContext context, double heightFactor) {
+    final theme = Theme.of(context);
     return Container(
       width: 30,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.4),
+        color: theme.colorScheme.primary.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
       ),
       child: FractionallySizedBox(
         heightFactor: heightFactor,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.6),
+            color: theme.colorScheme.primary.withValues(alpha: 0.6),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
         ),
@@ -546,68 +573,124 @@ class _TenderDetailScreenState extends ConsumerState<TenderDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        border: Border(
-          top: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: currentIndex > 0
-                ? () => setState(() => currentIndex--)
-                : null,
-            icon: Icon(
-              Icons.arrow_back_ios,
-              color: currentIndex > 0
-                  ? (isDark ? Colors.white : Colors.black)
-                  : Colors.grey,
-              size: 20,
-            ),
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.bookmark_outline),
-              label: const Text("Save"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: isDark ? Colors.white : Colors.black,
-                side: BorderSide(color: Colors.grey.shade700),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: currentIndex > 0
+                  ? () => setState(() => currentIndex--)
+                  : null,
+              icon: Icon(
+                Icons.arrow_back_ios,
+                color: currentIndex > 0
+                    ? theme.colorScheme.onSurface
+                    : theme.disabledColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FutureBuilder<bool>(
+                future: () async {
+                  final user = ref.read(currentUserProvider).value;
+                  if (user == null) return false;
+                  return ref
+                      .read(tenderRepositoryProvider)
+                      .isTenderSaved(user.id, tender.id);
+                }(),
+                builder: (context, snapshot) {
+                  final isSaved = snapshot.data ?? false;
+                  return OutlinedButton.icon(
+                    onPressed: isSaving ? null : _toggleSave,
+                    icon: Icon(
+                      isSaved ? Icons.bookmark : Icons.bookmark_outline,
+                    ),
+                    label: Text(isSaved ? "Saved" : "Save"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                      side: BorderSide(color: theme.colorScheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _alertStates[tender.id] = !isAlertSet;
+                });
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isAlertSet
+                          ? 'Alerts set for this tender'
+                          : 'Alerts disabled',
+                    ),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isAlertSet
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: 1,
+                  ),
+                  boxShadow: isAlertSet
+                      ? [
+                          BoxShadow(
+                            color: theme.colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Icon(
+                  isAlertSet
+                      ? Icons.notifications_active
+                      : Icons.notifications_none,
+                  color: isAlertSet ? Colors.white : theme.colorScheme.primary,
+                  size: 24,
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(12),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: currentIndex < widget.tenders.length - 1
+                  ? () => setState(() => currentIndex++)
+                  : null,
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                color: currentIndex < widget.tenders.length - 1
+                    ? theme.colorScheme.onSurface
+                    : theme.disabledColor,
+                size: 20,
+              ),
             ),
-            child: IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_active_outlined),
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: currentIndex < widget.tenders.length - 1
-                ? () => setState(() => currentIndex++)
-                : null,
-            icon: Icon(
-              Icons.arrow_forward_ios,
-              color: currentIndex < widget.tenders.length - 1
-                  ? (isDark ? Colors.white : Colors.black)
-                  : Colors.grey,
-              size: 20,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

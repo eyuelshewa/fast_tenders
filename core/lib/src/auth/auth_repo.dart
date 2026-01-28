@@ -18,6 +18,7 @@ abstract class AuthRepository {
   Stream<AuthState> get authStateChanges;
   User? get currentUser;
   Future<bool> updateUser({String? fullName, String? phone});
+  Future<void> updateBusinessProfile(Map<String, dynamic> data);
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -138,5 +139,36 @@ class SupabaseAuthRepository implements AuthRepository {
     } catch (e) {
       return false;
     }
+  }
+
+  @override
+  Future<void> updateBusinessProfile(Map<String, dynamic> data) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('No user logged in');
+
+    // Map UI camelCase keys to database snake_case columns
+    final mappedData = {
+      'id': user.id,
+      'business_name': data['businessName'],
+      'business_type': data['businessType'],
+      'sectors': data['sectors'],
+      'license_category': data['licenseCategory'],
+      'license_grade': data['licenseGrade'],
+      'vat_registered': data['vatRegistered'],
+      'tax_compliance': data['taxCompliance'],
+      'max_contract_size': data['maxContractSize'],
+      'bid_bond_comfort': data['bidBondComfort'],
+      'years_in_operation': data['yearsInOperation'],
+      'projects_completed': data['projectsCompleted'],
+      'major_client': data['majorClient'],
+      'preferred_institutions': data['preferredInstitutions'],
+      'operating_regions': data['operatingRegions'],
+      'alert_match': data['alertMatch'],
+      'alert_favorite': data['alertFavorite'],
+      'alert_deadline': data['alertDeadline'],
+      'alert_competitor': data['alertCompetitor'],
+    };
+
+    await _supabase.from('business_profiles').upsert(mappedData);
   }
 }

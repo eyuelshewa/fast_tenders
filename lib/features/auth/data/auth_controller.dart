@@ -58,4 +58,9 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _authRepository.resetPassword(email));
   }
+
+  Future<void> updateBusinessProfile(Map<String, dynamic> data) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _authRepository.updateBusinessProfile(data));
+  }
 }

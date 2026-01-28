@@ -25,6 +25,42 @@ CREATE POLICY "Users can insert their own profile." ON public.profiles
 CREATE POLICY "Users can update own profile." ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
+-- 1.1 BUSINESS PROFILES TABLE
+CREATE TABLE IF NOT EXISTS public.business_profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  business_name TEXT,
+  business_type TEXT,
+  sectors TEXT[],
+  license_category TEXT,
+  license_grade TEXT,
+  vat_registered BOOLEAN,
+  tax_compliance TEXT,
+  max_contract_size TEXT,
+  bid_bond_comfort TEXT,
+  years_in_operation TEXT,
+  projects_completed TEXT,
+  major_client TEXT,
+  preferred_institutions TEXT[],
+  operating_regions TEXT[],
+  alert_match BOOLEAN DEFAULT true,
+  alert_favorite BOOLEAN DEFAULT true,
+  alert_deadline BOOLEAN DEFAULT false,
+  alert_competitor BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.business_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own business profile." ON public.business_profiles
+  FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own business profile." ON public.business_profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own business profile." ON public.business_profiles
+  FOR UPDATE USING (auth.uid() = id);
+
 -- Trigger to create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -70,7 +106,7 @@ CREATE POLICY "Only admins can modify tenders" ON public.tenders
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid() AND profiles.is_pro = true -- Or a specific role check
+      WHERE profiles.id = auth.uid() AND profiles.is_pro = true
     )
   );
 
@@ -102,6 +138,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
+  type TEXT DEFAULT 'general' NOT NULL,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -125,4 +162,5 @@ END;
 $$ language 'plpgsql';
 
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_business_profiles_updated_at BEFORE UPDATE ON public.business_profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_tenders_updated_at BEFORE UPDATE ON public.tenders FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

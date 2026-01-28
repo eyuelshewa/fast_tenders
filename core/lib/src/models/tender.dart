@@ -16,7 +16,7 @@ class Tender with _$Tender {
     @JsonKey(name: 'posted_date') required DateTime postedDate,
     @JsonKey(name: 'cpo_amount') double? cpoAmount,
     required String status,
-    @JsonKey(name: 'min_grade') required String minGrade,
+    @JsonKey(name: 'min_grade') String? minGrade,
     @JsonKey(name: 'location_en') required String locationEn,
     @JsonKey(name: 'location_am') required String locationAm,
     @JsonKey(name: 'is_featured') @Default(false) bool isFeatured,

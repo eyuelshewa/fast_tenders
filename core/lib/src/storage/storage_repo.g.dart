@@ -6,7 +6,7 @@ part of 'storage_repo.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$storageRepositoryHash() => r'90394d41653adb4757649b1cb305d0cd8dd5757a';
+String _$storageRepositoryHash() => r'e42cad79db30dbb88768e9aa72c00a51ddb34acb';
 
 /// See also [storageRepository].
 @ProviderFor(storageRepository)

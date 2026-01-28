@@ -1,5 +1,5 @@
 import 'package:fast_tenders/core/providers/locale_provider.dart';
-import 'package:fast_tenders/core/feed/data/mock_tenders.dart';
+import 'package:fast_tenders/core/providers/tender_provider.dart';
 import 'package:fast_tenders/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,8 +35,7 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
     'Supply',
   ];
 
-  List<Tender> get filteredTenders {
-    final allTenders = MockTenders.list;
+  List<Tender> _filterTenders(List<Tender> allTenders) {
     final currentLocale = ref.read(localeProvider);
     final langCode = currentLocale.languageCode;
 
@@ -195,6 +194,7 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
   Widget build(BuildContext context) {
     final currentLocale = ref.watch(localeProvider);
     final l10n = AppLocalizations.of(context)!;
+    final tendersAsync = ref.watch(tendersProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -215,7 +215,10 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
               ),
             ),
           ),
-          const Icon(Icons.notifications_outlined),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => context.push('/notifications'),
+          ),
           const SizedBox(width: 16),
         ],
       ),
@@ -257,32 +260,32 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
                   _buildDrawerItem(
                     Icons.list_alt,
                     l10n.drawerAllTenders,
-                    () {},
+                    () => context.go('/feed'),
                   ),
                   _buildDrawerItem(
                     Icons.person_outline,
                     l10n.drawerMyTenders,
-                    () {},
+                    () => context.push('/my-tenders'),
                   ),
                   _buildDrawerItem(
                     Icons.money_off,
                     l10n.drawerFreeTenders,
-                    () {},
+                    () => context.push('/free-tenders'),
                   ),
                   _buildDrawerItem(
                     Icons.bookmark_border,
                     l10n.drawerSavedTenders,
-                    () {},
+                    () => context.push('/saved-tenders'),
                   ),
                   _buildDrawerItem(
                     Icons.mark_email_unread_outlined,
                     l10n.drawerUnread,
-                    () {},
+                    () => context.push('/unread-tenders'),
                   ),
                   _buildDrawerItem(
                     Icons.delete_outline,
                     l10n.drawerTrashed,
-                    () {},
+                    () => context.push('/trashed-tenders'),
                   ),
                   const Divider(),
                   _buildDrawerItem(
@@ -354,8 +357,12 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
 
           // Dynamic Tender cards list from mock data
           Expanded(
-            child: filteredTenders.isEmpty
-                ? Center(
+            child: tendersAsync.when(
+              data: (tenders) {
+                final filteredTenders = _filterTenders(tenders);
+
+                if (filteredTenders.isEmpty) {
+                  return Center(
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Column(
@@ -399,101 +406,128 @@ class _TenderScreenState extends ConsumerState<TenderScreen> {
                         ],
                       ),
                     ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () async {
-                      await Future.delayed(const Duration(seconds: 1));
-                      setState(() {});
-                    },
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      itemCount: filteredTenders.length,
-                      itemBuilder: (context, index) {
-                        final tender = filteredTenders[index];
-                        final diff = tender.deadline.difference(DateTime.now());
-                        final isUrgent = diff.inHours < 24 && diff.inHours > 0;
-                        final daysLeft = isUrgent
-                            ? l10n.hoursLeft(diff.inHours)
-                            : l10n.daysLeft(diff.inDays);
+                  );
+                }
 
-                                                // Calculate posted time ago
-                                                final postedDiff = DateTime.now().difference(
-                                                  tender.postedDate,
-                                                );
-                                                String postedLabel;
-                                                if (postedDiff.inDays == 0) {
-                                                  postedLabel = l10n.postedAgo(l10n.today);
-                                                } else if (postedDiff.inDays == 1) {
-                                                  postedLabel = l10n.postedAgo(l10n.yesterday);
-                                                } else {
-                                                  postedLabel = l10n.postedAgo(l10n.daysAgo(postedDiff.inDays));
-                                                }
-                        
-                                                // Format dates
-                                                final dateFormat = DateFormat('MMM dd, yyyy');
-                                                final openingDate = l10n.openingDate(
-                                                  dateFormat.format(tender.postedDate),
-                                                );
-                                                final closingDate = l10n.closingDate(
-                                                  dateFormat.format(tender.deadline),
-                                                );
-                        
-                                                // Color based on urgency (days left)
-                                                Color color;
-
-                                                if (diff.inDays < 5) {
-
-                                                  color = Colors.red;
-
-                                                } else if (diff.inDays < 10) {
-
-                                                  color = Colors.orange;
-
-                                                } else {
-
-                                                  color = Colors.green;
-
-                                                }
-
-                        
-
-                                                final isPro = tender.cpoAmount == null ||
-
-                                                    (tender.cpoAmount ?? 0) > 100000;
-
-                        return GestureDetector(
-                          onTap: () => context.push(
-                            '/tender-details',
-                            extra: {
-                              'tenders': filteredTenders,
-                              'initialIndex': index,
-                            },
-                          ),
-                          child: TenderCard(
-                            title: tender.getOrganization(
-                              currentLocale.languageCode,
-                            ),
-                            subtitle: tender.getTitle(
-                              currentLocale.languageCode,
-                            ),
-                            daysLeft: daysLeft,
-                            location: tender.getLocation(
-                              currentLocale.languageCode,
-                            ),
-                            postedAgo: postedLabel,
-                            openingDate: openingDate,
-                            closingDate: closingDate,
-                            color: color,
-                            isPro: isPro,
-                            urgent: isUrgent,
-                          ),
-                        );
-                      },
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    return ref.refresh(tendersProvider.future);
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
+                    itemCount: filteredTenders.length,
+                    itemBuilder: (context, index) {
+                      final tender = filteredTenders[index];
+                      final diff = tender.deadline.difference(DateTime.now());
+                      final isUrgent = diff.inHours < 24 && diff.inHours > 0;
+                      final daysLeft = isUrgent
+                          ? l10n.hoursLeft(diff.inHours)
+                          : l10n.daysLeft(diff.inDays);
+
+                      // Calculate posted time ago
+                      final postedDiff = DateTime.now().difference(
+                        tender.postedDate,
+                      );
+                      String postedLabel;
+                      if (postedDiff.inDays == 0) {
+                        postedLabel = l10n.postedAgo(l10n.today);
+                      } else if (postedDiff.inDays == 1) {
+                        postedLabel = l10n.postedAgo(l10n.yesterday);
+                      } else {
+                        postedLabel = l10n.postedAgo(
+                            l10n.daysAgo(postedDiff.inDays));
+                      }
+
+                      // Format dates
+                      final dateFormat = DateFormat('MMM dd, yyyy');
+                      final openingDate = l10n.openingDate(
+                        dateFormat.format(tender.postedDate),
+                      );
+                      final closingDate = l10n.closingDate(
+                        dateFormat.format(tender.deadline),
+                      );
+
+                      // Color based on urgency (days left)
+                      Color color;
+                      if (diff.inDays < 5) {
+                        color = Colors.red;
+                      } else if (diff.inDays < 10) {
+                        color = Colors.orange;
+                      } else {
+                        color = Colors.green;
+                      }
+
+                      final isPro = tender.cpoAmount == null ||
+                          (tender.cpoAmount ?? 0) > 100000;
+
+                      return GestureDetector(
+                        onTap: () => context.push(
+                          '/tender-details',
+                          extra: {
+                            'tenders': filteredTenders,
+                            'initialIndex': index,
+                          },
+                        ),
+                        child: TenderCard(
+                          title: tender.getOrganization(
+                            currentLocale.languageCode,
+                          ),
+                          subtitle: tender.getTitle(
+                            currentLocale.languageCode,
+                          ),
+                          daysLeft: daysLeft,
+                          location: tender.getLocation(
+                            currentLocale.languageCode,
+                          ),
+                          postedAgo: postedLabel,
+                          openingDate: openingDate,
+                          closingDate: closingDate,
+                          color: color,
+                          isPro: isPro,
+                          urgent: isUrgent,
+                        ),
+                      );
+                    },
                   ),
+                );
+              },
+              error: (error, stack) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Failed to load tenders',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        error.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.refresh(tendersProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
           ),
         ],
       ),

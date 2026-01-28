@@ -21,7 +21,12 @@ class SupabaseNotificationRepository implements NotificationRepository {
         .select()
         .eq('user_id', userId)
         .order('created_at', ascending: false);
-    return response.map((json) => Notification.fromJson(json)).toList();
+    
+    return (response as List).map((json) {
+      // Ensure 'type' exists to match Notification model
+      if (json['type'] == null) json['type'] = 'general';
+      return Notification.fromJson(json);
+    }).toList();
   }
 
   @override
@@ -36,9 +41,12 @@ class SupabaseNotificationRepository implements NotificationRepository {
 
   @override
   Future<Notification> createNotification(Notification notification) async {
+    final data = notification.toJson();
+    if (data['type'] == null) data['type'] = 'general';
+    
     final response = await _supabase
         .from('notifications')
-        .insert(notification.toJson())
+        .insert(data)
         .select()
         .single();
     return Notification.fromJson(response);

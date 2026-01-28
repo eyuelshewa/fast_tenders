@@ -10,6 +10,10 @@ import 'package:fast_tenders/screens/login_screen.dart';
 import 'package:fast_tenders/screens/signup_screen.dart';
 import 'package:fast_tenders/screens/forgot_password_screen.dart';
 import 'package:fast_tenders/screens/tender_detail_screen.dart';
+import 'package:fast_tenders/screens/buisness_profile_screen.dart';
+import 'package:fast_tenders/screens/notification_screen.dart';
+import 'package:fast_tenders/screens/saved_tenders_screen.dart';
+import 'package:fast_tenders/screens/generic_tender_list_screen.dart';
 import 'package:core/core.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -70,6 +74,46 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/business-profile',
+        builder: (context, state) => const BusinessProfileScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationScreen(),
+      ),
+      GoRoute(
+        path: '/saved-tenders',
+        builder: (context, state) => const SavedTendersScreen(),
+      ),
+      GoRoute(
+        path: '/my-tenders',
+        builder: (context, state) => const GenericTenderListScreen(
+          type: TenderListType.myTenders,
+          title: 'My Tenders',
+        ),
+      ),
+      GoRoute(
+        path: '/free-tenders',
+        builder: (context, state) => const GenericTenderListScreen(
+          type: TenderListType.freeTenders,
+          title: 'Free Tenders',
+        ),
+      ),
+      GoRoute(
+        path: '/unread-tenders',
+        builder: (context, state) => const GenericTenderListScreen(
+          type: TenderListType.unread,
+          title: 'Unread Tenders',
+        ),
+      ),
+      GoRoute(
+        path: '/trashed-tenders',
+        builder: (context, state) => const GenericTenderListScreen(
+          type: TenderListType.trashed,
+          title: 'Trashed Tenders',
+        ),
       ),
       GoRoute(
         path: '/tender-details',
